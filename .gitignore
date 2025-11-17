@@ -1,16 +1,9 @@
-# Compiled class file
+# Java/Spring Boot
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
 *.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
 *.nar
@@ -18,7 +11,45 @@
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+*.log
+*.ctxt
+.mtj.tmp/
 hs_err_pid*
 replay_pid*
+
+# Maven
+backend/pom.xml.tag
+backend/pom.xml.releaseBackup
+backend/pom.xml.versionsBackup
+backend/pom.xml.next
+backend/release.properties
+
+# Node/React
+frontend/node_modules/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+*~
+
+# Database
+*.db
+*.sqlite
