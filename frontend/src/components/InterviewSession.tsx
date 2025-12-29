@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Question, Feedback } from '../services/api';
+import { Question, Feedback } from './services/api';
+import { on } from 'events';
 
 interface InterviewSessionProps {
   role: string;
@@ -77,6 +78,10 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
     };
     recognition.onend = () => {
       setIsRecording(false);
+      if (answerText.trim()) {
+        onAnswerSubmit(answerText);
+        setAnswerText('');
+      }
     };
     recognition.onerror = () => {
       setIsRecording(false);
@@ -92,6 +97,10 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
       recognitionRef.current = null;
     }
     setIsRecording(false);
+    if (answerText.trim()) {
+      onAnswerSubmit(answerText);
+      setAnswerText('');
+    }
   };
 
   // Show loading state

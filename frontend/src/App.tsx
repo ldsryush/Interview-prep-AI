@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import RoleSelection from './components/RoleSelection';
 import InterviewSession from './components/InterviewSession';
-import { Question, Answer, Feedback, getQuestion, submitAnswer } from './services/api';
+import { Question, Answer, Feedback, getQuestion, submitAnswer } from './components/services/api';
 
 type AppState = 'roleSelection' | 'interviewSession';
 
