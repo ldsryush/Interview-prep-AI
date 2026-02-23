@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import RoleSelection from './components/RoleSelection';
 import InterviewSession from './components/InterviewSession';
+<<<<<<< HEAD
 import {
   Difficulty,
   EndSessionResponse,
@@ -9,6 +10,9 @@ import {
   startSession,
   endSession,
 } from './services/api';
+=======
+import { Question, Answer, Feedback, getQuestion, submitAnswer } from './components/services/api';
+>>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
 
 type AppState = 'roleSelection' | 'interviewSession';
 

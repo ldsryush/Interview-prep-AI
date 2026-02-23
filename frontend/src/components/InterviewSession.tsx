@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+<<<<<<< HEAD
 import { Difficulty, EndSessionResponse, SessionMessage } from '../services/api';
+=======
+import { Question, Feedback } from './services/api';
+import { on } from 'events';
+>>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
 
 interface InterviewSessionProps {
   role: string;
@@ -23,10 +28,16 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
   feedback,
 }) => {
   const [answerText, setAnswerText] = useState('');
+<<<<<<< HEAD
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+=======
+  const [submitted, setSubmitted] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+>>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
 
   useEffect(() => {
     const recognitionConstructor =
@@ -103,6 +114,23 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
     window.speechSynthesis.speak(utterance);
   }, [feedback]);
 
+  useEffect(() => {
+    if (question) {
+      const utter = new SpeechSynthesisUtterance(`${question.questionText}${question.hints ? ' Hint: ' + question.hints : ''}`);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+  }, [question]);
+
+  useEffect(() => {
+    if (feedback) {
+      const text = `Score ${feedback.score} out of 10. Strengths: ${feedback.strengths}. Areas for improvement: ${feedback.areasForImprovement}. Overall comments: ${feedback.overallComments}.`;
+      const utter = new SpeechSynthesisUtterance(text);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+  }, [feedback]);
+
   const handleSubmit = () => {
     if (answerText.trim()) {
       recognitionRef.current?.stop();
@@ -128,6 +156,51 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
 
     recognitionRef.current.start();
     setIsListening(true);
+  };
+
+  const startRecording = () => {
+    const SR: typeof window & { webkitSpeechRecognition?: any } = window as any;
+    const SpeechRecognitionCtor = (SR.SpeechRecognition || SR.webkitSpeechRecognition);
+    if (!SpeechRecognitionCtor) {
+      alert('Speech Recognition is not supported in this browser.');
+      return;
+    }
+    const recognition: SpeechRecognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setAnswerText(transcript);
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+      if (answerText.trim()) {
+        onAnswerSubmit(answerText);
+        setAnswerText('');
+      }
+    };
+    recognition.onerror = () => {
+      setIsRecording(false);
+    };
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    recognition.start();
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsRecording(false);
+    if (answerText.trim()) {
+      onAnswerSubmit(answerText);
+      setAnswerText('');
+    }
   };
 
   // Show loading state
@@ -178,6 +251,7 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
             rows={5}
           />
           <div style={styles.buttonGroup}>
+<<<<<<< HEAD
             <button onClick={handleSubmit} style={styles.submitButton} disabled={loading}>
               {loading ? 'Sending...' : 'Send Response'}
             </button>
@@ -190,6 +264,15 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
             </button>
             <button onClick={onEndInterview} style={styles.endButton} disabled={loading}>
               End Interview
+=======
+            {!isRecording ? (
+              <button onClick={startRecording} style={styles.micButton}>🎤 Record Answer</button>
+            ) : (
+              <button onClick={stopRecording} style={styles.stopButton}>⏹️ Stop Recording</button>
+            )}
+            <button onClick={handleSubmit} style={styles.submitButton}>
+              Submit Answer
+>>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
             </button>
           </div>
           {micError && <p style={styles.micError}>{micError}</p>}
@@ -332,6 +415,26 @@ const styles = {
     fontSize: '16px',
     fontWeight: 'bold' as const,
     backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  micButton: {
+    padding: '12px 20px',
+    fontSize: '16px',
+    fontWeight: 'bold' as const,
+    backgroundColor: '#17a2b8',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  stopButton: {
+    padding: '12px 20px',
+    fontSize: '16px',
+    fontWeight: 'bold' as const,
+    backgroundColor: '#dc3545',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
