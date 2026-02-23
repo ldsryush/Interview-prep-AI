@@ -1,14 +1,19 @@
 import React from 'react';
+import { Difficulty } from '../services/api';
 
 interface RoleSelectionProps {
   selectedRole: string;
   onRoleChange: (role: string) => void;
+  selectedDifficulty: Difficulty;
+  onDifficultyChange: (difficulty: Difficulty) => void;
   onStartInterview: () => void;
 }
 
 const RoleSelection: React.FC<RoleSelectionProps> = ({
   selectedRole,
   onRoleChange,
+  selectedDifficulty,
+  onDifficultyChange,
   onStartInterview,
 }) => {
   // Available job roles
@@ -41,6 +46,22 @@ const RoleSelection: React.FC<RoleSelectionProps> = ({
               {role}
             </option>
           ))}
+        </select>
+      </div>
+
+      <div style={styles.formGroup}>
+        <label htmlFor="difficultySelect" style={styles.label}>
+          Choose Difficulty:
+        </label>
+        <select
+          id="difficultySelect"
+          value={selectedDifficulty}
+          onChange={(e) => onDifficultyChange(e.target.value as Difficulty)}
+          style={styles.select}
+        >
+          <option value="EASY">Easy</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="HARD">Hard</option>
         </select>
       </div>
 

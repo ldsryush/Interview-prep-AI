@@ -1,69 +1,168 @@
-import React, { useState, useEffect } from 'react';
-import { Question, Feedback } from '../services/api';
+import React, { useState, useEffect, useRef } from 'react';
+import { Difficulty, EndSessionResponse, SessionMessage } from '../services/api';
 
 interface InterviewSessionProps {
   role: string;
-  question: Question | null;
+  difficulty: Difficulty;
+  interviewerMessage: string;
+  messages: SessionMessage[];
   loading: boolean;
   onAnswerSubmit: (answerText: string) => void;
-  feedback: Feedback | null;
+  onEndInterview: () => void;
+  feedback: EndSessionResponse | null;
 }
 
 const InterviewSession: React.FC<InterviewSessionProps> = ({
   role,
-  question,
+  difficulty,
+  interviewerMessage,
+  messages,
   loading,
   onAnswerSubmit,
+  onEndInterview,
   feedback,
 }) => {
   const [answerText, setAnswerText] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-  // Reset form when feedback is received
   useEffect(() => {
-    if (feedback) {
-      setSubmitted(true);
+    const recognitionConstructor =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!recognitionConstructor) {
+      setSpeechSupported(false);
+      return;
     }
+
+    setSpeechSupported(true);
+    const recognition = new recognitionConstructor();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const transcript = event.results[index][0].transcript;
+        if (event.results[index].isFinal) {
+          finalTranscript += transcript;
+        }
+      }
+
+      const transcript = finalTranscript.trim();
+      if (!transcript) {
+        return;
+      }
+
+      setAnswerText((current) => `${current} ${transcript}`.trim());
+    };
+
+    recognition.onerror = (event: any) => {
+      setMicError(`Microphone error: ${event.error}`);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.stop();
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!interviewerMessage || feedback) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(
+      `Interviewer says: ${interviewerMessage}`
+    );
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [interviewerMessage, feedback, role]);
+
+  useEffect(() => {
+    if (!feedback) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(
+      `Here is your feedback. Score ${feedback.score} out of 10. Strengths: ${feedback.strengths}. Areas for improvement: ${feedback.areasForImprovement}. Overall comments: ${feedback.overallComments}`
+    );
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   }, [feedback]);
 
   const handleSubmit = () => {
     if (answerText.trim()) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
       onAnswerSubmit(answerText);
       setAnswerText('');
     }
   };
 
-  const handleNextQuestion = () => {
-    setSubmitted(false);
-    setAnswerText('');
+  const handleMicToggle = () => {
+    if (!recognitionRef.current) {
+      setMicError('Speech recognition is not supported in this browser. Use Chrome or Edge.');
+      return;
+    }
+
+    setMicError(null);
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    recognitionRef.current.start();
+    setIsListening(true);
   };
 
   // Show loading state
-  if (loading && !question) {
+  if (loading && messages.length === 0) {
     return (
       <div style={styles.container}>
-        <p style={styles.loadingText}>Loading question...</p>
+        <p style={styles.loadingText}>Starting interview...</p>
       </div>
     );
   }
 
-  // Show question and answer form (before submission)
-  if (question && !submitted) {
+  // Show active interview conversation
+  if (!feedback) {
     return (
       <div style={styles.container}>
         <div style={styles.header}>
           <h2 style={styles.role}>Role: {role}</h2>
-          <span style={styles.difficulty}>Difficulty: {question.difficulty}</span>
+          <span style={styles.difficulty}>Difficulty: {difficulty}</span>
         </div>
 
         <div style={styles.questionBox}>
-          <h3 style={styles.questionLabel}>Question:</h3>
-          <p style={styles.questionText}>{question.questionText}</p>
-          {question.hints && (
-            <div style={styles.hintsBox}>
-              <strong>💡 Hint:</strong> {question.hints}
+          <h3 style={styles.questionLabel}>Conversation:</h3>
+          {messages.map((message, index) => (
+            <div
+              key={`${message.role}-${index}-${message.content.slice(0, 16)}`}
+              style={
+                message.role === 'INTERVIEWER'
+                  ? styles.interviewerBubble
+                  : styles.candidateBubble
+              }
+            >
+              <strong>{message.role === 'INTERVIEWER' ? 'Interviewer' : 'You'}:</strong>{' '}
+              {message.content}
             </div>
-          )}
+          ))}
         </div>
 
         <div style={styles.answerBox}>
@@ -76,13 +175,27 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
             onChange={(e) => setAnswerText(e.target.value)}
             placeholder="Type your answer here..."
             style={styles.textarea}
-            rows={6}
+            rows={5}
           />
           <div style={styles.buttonGroup}>
-            <button onClick={handleSubmit} style={styles.submitButton}>
-              Submit Answer
+            <button onClick={handleSubmit} style={styles.submitButton} disabled={loading}>
+              {loading ? 'Sending...' : 'Send Response'}
+            </button>
+            <button
+              onClick={handleMicToggle}
+              style={styles.micButton}
+              disabled={!speechSupported || loading}
+            >
+              {isListening ? 'Stop Mic' : 'Start Mic'}
+            </button>
+            <button onClick={onEndInterview} style={styles.endButton} disabled={loading}>
+              End Interview
             </button>
           </div>
+          {micError && <p style={styles.micError}>{micError}</p>}
+          {!speechSupported && (
+            <p style={styles.micHint}>Voice input is available in Chrome or Edge.</p>
+          )}
         </div>
       </div>
     );
@@ -116,9 +229,7 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
           </div>
 
           <div style={styles.buttonGroup}>
-            <button onClick={handleNextQuestion} style={styles.nextButton}>
-              Next Question
-            </button>
+            <p style={styles.feedbackHint}>Interview ended. Use Back to Role Selection to start a new one.</p>
           </div>
         </div>
       </div>
@@ -236,6 +347,36 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
   },
+  endButton: {
+    padding: '12px 20px',
+    fontSize: '16px',
+    fontWeight: 'bold' as const,
+    backgroundColor: '#dc3545',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  micButton: {
+    padding: '12px 20px',
+    fontSize: '16px',
+    fontWeight: 'bold' as const,
+    backgroundColor: '#17a2b8',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  micError: {
+    marginTop: '10px',
+    color: '#c82333',
+    fontSize: '13px',
+  },
+  micHint: {
+    marginTop: '10px',
+    color: '#666',
+    fontSize: '13px',
+  },
   feedbackBox: {
     padding: '20px',
     backgroundColor: '#f0f8ff',
@@ -281,6 +422,27 @@ const styles = {
     color: '#555',
     lineHeight: '1.6',
     margin: 0,
+  },
+  interviewerBubble: {
+    marginBottom: '12px',
+    padding: '12px',
+    backgroundColor: '#e7f3ff',
+    borderRadius: '6px',
+    color: '#004085',
+    lineHeight: '1.5',
+  },
+  candidateBubble: {
+    marginBottom: '12px',
+    padding: '12px',
+    backgroundColor: '#f1f3f5',
+    borderRadius: '6px',
+    color: '#343a40',
+    lineHeight: '1.5',
+  },
+  feedbackHint: {
+    margin: 0,
+    color: '#333',
+    fontSize: '14px',
   },
 };
 

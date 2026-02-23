@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
 import RoleSelection from './components/RoleSelection';
 import InterviewSession from './components/InterviewSession';
-import { Question, Answer, Feedback, getQuestion, submitAnswer } from './services/api';
+import {
+  Difficulty,
+  EndSessionResponse,
+  SessionMessage,
+  sendSessionMessage,
+  startSession,
+  endSession,
+} from './services/api';
 
 type AppState = 'roleSelection' | 'interviewSession';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('roleSelection');
   const [selectedRole, setSelectedRole] = useState('');
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('MEDIUM');
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [currentInterviewerMessage, setCurrentInterviewerMessage] = useState<string>('');
+  const [messages, setMessages] = useState<SessionMessage[]>([]);
+  const [finalFeedback, setFinalFeedback] = useState<EndSessionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle role selection and fetch first question
+  // Handle role selection and start interview session
   const handleStartInterview = async () => {
     if (!selectedRole) {
       setError('Please select a role');
@@ -22,15 +32,21 @@ const App: React.FC = () => {
 
     setLoading(true);
     setError(null);
-    setFeedback(null);
+    setFinalFeedback(null);
 
     try {
-      // Fetch a question for the selected role
-      const fetchedQuestion = await getQuestion(selectedRole);
-      setQuestion(fetchedQuestion);
+      const session = await startSession(selectedRole, selectedDifficulty);
+      setSessionId(session.sessionId);
+      setCurrentInterviewerMessage(session.interviewerMessage);
+      setMessages([
+        {
+          role: 'INTERVIEWER',
+          content: session.interviewerMessage,
+        },
+      ]);
       setAppState('interviewSession');
     } catch (err) {
-      setError('Failed to fetch question. Make sure the backend is running.');
+      setError('Failed to start interview. Make sure backend is running and OPENAI_API_KEY is set.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -39,8 +55,42 @@ const App: React.FC = () => {
 
   // Handle answer submission
   const handleAnswerSubmit = async (answerText: string) => {
-    if (!question) {
-      setError('No question loaded');
+    if (!sessionId) {
+      setError('No active interview session');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setFinalFeedback(null);
+
+    const candidateMessage: SessionMessage = {
+      role: 'CANDIDATE',
+      content: answerText,
+    };
+    setMessages((current) => [...current, candidateMessage]);
+
+    try {
+      const response = await sendSessionMessage(sessionId, answerText);
+      setCurrentInterviewerMessage(response.interviewerMessage);
+      setMessages((current) => [
+        ...current,
+        {
+          role: 'INTERVIEWER',
+          content: response.interviewerMessage,
+        },
+      ]);
+    } catch (err) {
+      setError('Failed to send your response. Please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEndInterview = async () => {
+    if (!sessionId) {
+      setError('No active interview session');
       return;
     }
 
@@ -48,35 +98,10 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      // Create answer object
-      const answer: Answer = {
-        question: { id: question.id },
-        answerText,
-      };
-
-      // Submit answer and get feedback
-      const fetchedFeedback = await submitAnswer(answer);
-      setFeedback(fetchedFeedback);
+      const feedback = await endSession(sessionId);
+      setFinalFeedback(feedback);
     } catch (err) {
-      setError('Failed to submit answer. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle next question
-  const handleNextQuestion = async () => {
-    setLoading(true);
-    setError(null);
-    setFeedback(null);
-
-    try {
-      // Fetch next question for the same role
-      const nextQuestion = await getQuestion(selectedRole);
-      setQuestion(nextQuestion);
-    } catch (err) {
-      setError('Failed to fetch next question.');
+      setError('Failed to end session and generate final feedback.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -87,8 +112,11 @@ const App: React.FC = () => {
   const handleBackToRoleSelection = () => {
     setAppState('roleSelection');
     setSelectedRole('');
-    setQuestion(null);
-    setFeedback(null);
+    setSelectedDifficulty('MEDIUM');
+    setSessionId(null);
+    setCurrentInterviewerMessage('');
+    setMessages([]);
+    setFinalFeedback(null);
     setError(null);
   };
 
@@ -106,6 +134,8 @@ const App: React.FC = () => {
         <RoleSelection
           selectedRole={selectedRole}
           onRoleChange={setSelectedRole}
+          selectedDifficulty={selectedDifficulty}
+          onDifficultyChange={setSelectedDifficulty}
           onStartInterview={handleStartInterview}
         />
       )}
@@ -121,10 +151,13 @@ const App: React.FC = () => {
           </button>
           <InterviewSession
             role={selectedRole}
-            question={question}
+            difficulty={selectedDifficulty}
+            interviewerMessage={currentInterviewerMessage}
+            messages={messages}
             loading={loading}
             onAnswerSubmit={handleAnswerSubmit}
-            feedback={feedback}
+            onEndInterview={handleEndInterview}
+            feedback={finalFeedback}
           />
         </div>
       )}
