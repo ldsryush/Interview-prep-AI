@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import RoleSelection from './components/RoleSelection';
 import InterviewSession from './components/InterviewSession';
-<<<<<<< HEAD
 import {
   Difficulty,
   EndSessionResponse,
@@ -10,9 +10,6 @@ import {
   startSession,
   endSession,
 } from './services/api';
-=======
-import { Question, Answer, Feedback, getQuestion, submitAnswer } from './components/services/api';
->>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
 
 type AppState = 'roleSelection' | 'interviewSession';
 
@@ -27,7 +24,16 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle role selection and start interview session
+  const getApiErrorMessage = (fallback: string, errorValue: unknown): string => {
+    if (axios.isAxiosError(errorValue)) {
+      const responseMessage = (errorValue.response?.data as { message?: string } | undefined)?.message;
+      if (responseMessage) {
+        return responseMessage;
+      }
+    }
+    return fallback;
+  };
+
   const handleStartInterview = async () => {
     if (!selectedRole) {
       setError('Please select a role');
@@ -50,14 +56,13 @@ const App: React.FC = () => {
       ]);
       setAppState('interviewSession');
     } catch (err) {
-      setError('Failed to start interview. Make sure backend is running and OPENAI_API_KEY is set.');
+      setError(getApiErrorMessage('Failed to start interview. Make sure backend is running and OPENAI_API_KEY is set.', err));
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle answer submission
   const handleAnswerSubmit = async (answerText: string) => {
     if (!sessionId) {
       setError('No active interview session');
@@ -85,7 +90,7 @@ const App: React.FC = () => {
         },
       ]);
     } catch (err) {
-      setError('Failed to send your response. Please try again.');
+      setError(getApiErrorMessage('Failed to send your response. Please try again.', err));
       console.error(err);
     } finally {
       setLoading(false);
@@ -105,14 +110,13 @@ const App: React.FC = () => {
       const feedback = await endSession(sessionId);
       setFinalFeedback(feedback);
     } catch (err) {
-      setError('Failed to end session and generate final feedback.');
+      setError(getApiErrorMessage('Failed to end session and generate final feedback.', err));
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle going back to role selection
   const handleBackToRoleSelection = () => {
     setAppState('roleSelection');
     setSelectedRole('');
@@ -126,14 +130,12 @@ const App: React.FC = () => {
 
   return (
     <div style={styles.app}>
-      {/* Error message display */}
       {error && (
         <div style={styles.errorBanner}>
           <p style={styles.errorText}>❌ {error}</p>
         </div>
       )}
 
-      {/* Role Selection Screen */}
       {appState === 'roleSelection' && (
         <RoleSelection
           selectedRole={selectedRole}
@@ -144,13 +146,9 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Interview Session Screen */}
       {appState === 'interviewSession' && (
         <div>
-          <button
-            onClick={handleBackToRoleSelection}
-            style={styles.backButton}
-          >
+          <button onClick={handleBackToRoleSelection} style={styles.backButton}>
             ← Back to Role Selection
           </button>
           <InterviewSession

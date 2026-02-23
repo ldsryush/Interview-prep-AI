@@ -1,10 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-<<<<<<< HEAD
+import React, { useEffect, useRef, useState } from 'react';
 import { Difficulty, EndSessionResponse, SessionMessage } from '../services/api';
-=======
-import { Question, Feedback } from './services/api';
-import { on } from 'events';
->>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
 
 interface InterviewSessionProps {
   role: string;
@@ -28,16 +23,10 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
   feedback,
 }) => {
   const [answerText, setAnswerText] = useState('');
-<<<<<<< HEAD
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
-=======
-  const [submitted, setSubmitted] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
->>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
 
   useEffect(() => {
     const recognitionConstructor =
@@ -95,12 +84,10 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(
-      `Interviewer says: ${interviewerMessage}`
-    );
+    const utterance = new SpeechSynthesisUtterance(`Interviewer says: ${interviewerMessage}`);
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
-  }, [interviewerMessage, feedback, role]);
+  }, [interviewerMessage, feedback]);
 
   useEffect(() => {
     if (!feedback) {
@@ -114,30 +101,15 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
     window.speechSynthesis.speak(utterance);
   }, [feedback]);
 
-  useEffect(() => {
-    if (question) {
-      const utter = new SpeechSynthesisUtterance(`${question.questionText}${question.hints ? ' Hint: ' + question.hints : ''}`);
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
-    }
-  }, [question]);
-
-  useEffect(() => {
-    if (feedback) {
-      const text = `Score ${feedback.score} out of 10. Strengths: ${feedback.strengths}. Areas for improvement: ${feedback.areasForImprovement}. Overall comments: ${feedback.overallComments}.`;
-      const utter = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utter);
-    }
-  }, [feedback]);
-
   const handleSubmit = () => {
-    if (answerText.trim()) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      onAnswerSubmit(answerText);
-      setAnswerText('');
+    if (!answerText.trim()) {
+      return;
     }
+
+    recognitionRef.current?.stop();
+    setIsListening(false);
+    onAnswerSubmit(answerText.trim());
+    setAnswerText('');
   };
 
   const handleMicToggle = () => {
@@ -158,52 +130,6 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
     setIsListening(true);
   };
 
-  const startRecording = () => {
-    const SR: typeof window & { webkitSpeechRecognition?: any } = window as any;
-    const SpeechRecognitionCtor = (SR.SpeechRecognition || SR.webkitSpeechRecognition);
-    if (!SpeechRecognitionCtor) {
-      alert('Speech Recognition is not supported in this browser.');
-      return;
-    }
-    const recognition: SpeechRecognition = new SpeechRecognitionCtor();
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
-      setAnswerText(transcript);
-    };
-    recognition.onend = () => {
-      setIsRecording(false);
-      if (answerText.trim()) {
-        onAnswerSubmit(answerText);
-        setAnswerText('');
-      }
-    };
-    recognition.onerror = () => {
-      setIsRecording(false);
-    };
-    recognitionRef.current = recognition;
-    setIsRecording(true);
-    recognition.start();
-  };
-
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    setIsRecording(false);
-    if (answerText.trim()) {
-      onAnswerSubmit(answerText);
-      setAnswerText('');
-    }
-  };
-
-  // Show loading state
   if (loading && messages.length === 0) {
     return (
       <div style={styles.container}>
@@ -212,7 +138,6 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
     );
   }
 
-  // Show active interview conversation
   if (!feedback) {
     return (
       <div style={styles.container}>
@@ -226,14 +151,9 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
           {messages.map((message, index) => (
             <div
               key={`${message.role}-${index}-${message.content.slice(0, 16)}`}
-              style={
-                message.role === 'INTERVIEWER'
-                  ? styles.interviewerBubble
-                  : styles.candidateBubble
-              }
+              style={message.role === 'INTERVIEWER' ? styles.interviewerBubble : styles.candidateBubble}
             >
-              <strong>{message.role === 'INTERVIEWER' ? 'Interviewer' : 'You'}:</strong>{' '}
-              {message.content}
+              <strong>{message.role === 'INTERVIEWER' ? 'Interviewer' : 'You'}:</strong> {message.content}
             </div>
           ))}
         </div>
@@ -245,81 +165,60 @@ const InterviewSession: React.FC<InterviewSessionProps> = ({
           <textarea
             id="answerTextarea"
             value={answerText}
-            onChange={(e) => setAnswerText(e.target.value)}
+            onChange={(event) => setAnswerText(event.target.value)}
             placeholder="Type your answer here..."
             style={styles.textarea}
             rows={5}
           />
           <div style={styles.buttonGroup}>
-<<<<<<< HEAD
             <button onClick={handleSubmit} style={styles.submitButton} disabled={loading}>
               {loading ? 'Sending...' : 'Send Response'}
             </button>
-            <button
-              onClick={handleMicToggle}
-              style={styles.micButton}
-              disabled={!speechSupported || loading}
-            >
+            <button onClick={handleMicToggle} style={styles.micButton} disabled={!speechSupported || loading}>
               {isListening ? 'Stop Mic' : 'Start Mic'}
             </button>
             <button onClick={onEndInterview} style={styles.endButton} disabled={loading}>
               End Interview
-=======
-            {!isRecording ? (
-              <button onClick={startRecording} style={styles.micButton}>🎤 Record Answer</button>
-            ) : (
-              <button onClick={stopRecording} style={styles.stopButton}>⏹️ Stop Recording</button>
-            )}
-            <button onClick={handleSubmit} style={styles.submitButton}>
-              Submit Answer
->>>>>>> abb712429d5d64d61e3585b6c463a92dcc617d2a
             </button>
           </div>
           {micError && <p style={styles.micError}>{micError}</p>}
-          {!speechSupported && (
-            <p style={styles.micHint}>Voice input is available in Chrome or Edge.</p>
-          )}
+          {!speechSupported && <p style={styles.micHint}>Voice input is available in Chrome or Edge.</p>}
         </div>
       </div>
     );
   }
 
-  // Show feedback (after submission)
-  if (feedback) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.feedbackBox}>
-          <h2 style={styles.feedbackTitle}>Feedback</h2>
+  return (
+    <div style={styles.container}>
+      <div style={styles.feedbackBox}>
+        <h2 style={styles.feedbackTitle}>Feedback</h2>
 
-          <div style={styles.scoreBox}>
-            <span style={styles.scoreLabel}>Score:</span>
-            <span style={styles.scoreValue}>{feedback.score}/10</span>
-          </div>
+        <div style={styles.scoreBox}>
+          <span style={styles.scoreLabel}>Score:</span>
+          <span style={styles.scoreValue}>{feedback.score}/10</span>
+        </div>
 
-          <div style={styles.feedbackSection}>
-            <h3 style={styles.sectionTitle}>✅ Strengths:</h3>
-            <p style={styles.feedbackText}>{feedback.strengths}</p>
-          </div>
+        <div style={styles.feedbackSection}>
+          <h3 style={styles.sectionTitle}>✅ Strengths:</h3>
+          <p style={styles.feedbackText}>{feedback.strengths}</p>
+        </div>
 
-          <div style={styles.feedbackSection}>
-            <h3 style={styles.sectionTitle}>📝 Areas for Improvement:</h3>
-            <p style={styles.feedbackText}>{feedback.areasForImprovement}</p>
-          </div>
+        <div style={styles.feedbackSection}>
+          <h3 style={styles.sectionTitle}>📝 Areas for Improvement:</h3>
+          <p style={styles.feedbackText}>{feedback.areasForImprovement}</p>
+        </div>
 
-          <div style={styles.feedbackSection}>
-            <h3 style={styles.sectionTitle}>💬 Overall Comments:</h3>
-            <p style={styles.feedbackText}>{feedback.overallComments}</p>
-          </div>
+        <div style={styles.feedbackSection}>
+          <h3 style={styles.sectionTitle}>💬 Overall Comments:</h3>
+          <p style={styles.feedbackText}>{feedback.overallComments}</p>
+        </div>
 
-          <div style={styles.buttonGroup}>
-            <p style={styles.feedbackHint}>Interview ended. Use Back to Role Selection to start a new one.</p>
-          </div>
+        <div style={styles.buttonGroup}>
+          <p style={styles.feedbackHint}>Interview ended. Use Back to Role Selection to start a new one.</p>
         </div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 };
 
 const styles = {
@@ -371,20 +270,6 @@ const styles = {
     marginBottom: '10px',
     margin: 0,
   },
-  questionText: {
-    fontSize: '16px',
-    color: '#555',
-    lineHeight: '1.6',
-    marginBottom: '15px',
-    margin: '10px 0 15px 0',
-  },
-  hintsBox: {
-    padding: '12px',
-    backgroundColor: '#e7f3ff',
-    borderRadius: '4px',
-    fontSize: '14px',
-    color: '#0066cc',
-  },
   answerBox: {
     marginBottom: '20px',
   },
@@ -430,41 +315,11 @@ const styles = {
     borderRadius: '4px',
     cursor: 'pointer',
   },
-  stopButton: {
-    padding: '12px 20px',
-    fontSize: '16px',
-    fontWeight: 'bold' as const,
-    backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  nextButton: {
-    padding: '12px 30px',
-    fontSize: '16px',
-    fontWeight: 'bold' as const,
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
   endButton: {
     padding: '12px 20px',
     fontSize: '16px',
     fontWeight: 'bold' as const,
     backgroundColor: '#dc3545',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  micButton: {
-    padding: '12px 20px',
-    fontSize: '16px',
-    fontWeight: 'bold' as const,
-    backgroundColor: '#17a2b8',
     color: 'white',
     border: 'none',
     borderRadius: '4px',
